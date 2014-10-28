@@ -15,6 +15,11 @@ import re
 import datetime
 import json
 
+# global variables
+RECORDS = None
+WATCHLIST = None
+COUNTRIES = None
+
 
 def decide(input_file, watchlist_file, countries_file):
     """
@@ -27,12 +32,21 @@ def decide(input_file, watchlist_file, countries_file):
     :return: List of strings. Possible values of strings are: "Accept", "Reject", "Secondary", and "Quarantine"
     """
 
+    global RECORDS, WATCHLIST, COUNTRIES
+
     # read in all files into data structures
     files = [input_file, watchlist_file, countries_file]
-    records, watchlist, countries = [json.load(open(f)) for f in files]
+    RECORDS, WATCHLIST, COUNTRIES = [json.load(open(f)) for f in files]
 
     results = []
-    for r in records:
+
+    decisions = {
+        "Quarantine": is_quarantine,
+        "Reject": is_rejection,
+        "Secondary": is_secondary,
+    }
+
+    for r in RECORDS:
         '''
         Decide whether we need to "Accept", "Reject", "Secondary",
         or "Quarantine" person with record r
@@ -40,6 +54,18 @@ def decide(input_file, watchlist_file, countries_file):
         Append string to results
         '''
     return results
+
+
+def is_quarantine(record):
+    return False
+
+
+def is_rejection(record):
+    return False
+
+
+def is_secondary(record):
+    return False
 
 
 def valid_passport_format(passport_number):
