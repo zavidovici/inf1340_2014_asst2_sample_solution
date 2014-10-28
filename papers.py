@@ -26,7 +26,20 @@ def decide(input_file, watchlist_file, countries_file):
         an entry or transit visa is required, and whether there is currently a medical advisory
     :return: List of strings. Possible values of strings are: "Accept", "Reject", "Secondary", and "Quarantine"
     """
-    return ["Reject"]
+
+    # read in all files into data structures
+    files = [input_file, watchlist_file, countries_file]
+    records, watchlist, countries = [json.load(open(f)) for f in files]
+
+    results = []
+    for r in records:
+        '''
+        Decide whether we need to "Accept", "Reject", "Secondary",
+        or "Quarantine" person with record r
+
+        Append string to results
+        '''
+    return results
 
 
 def valid_passport_format(passport_number):
