@@ -41,31 +41,44 @@ def decide(input_file, watchlist_file, countries_file):
         "Accept", "Reject", "Secondary", and "Quarantine"
     """
 
+    _set_global_vars(input_file, watchlist_file, countries_file)
+
+    results = []
+
+    decisions = {
+        "Quarantine": is_quarantine,
+        "Reject": is_reject,
+        "Secondary": is_secondary,
+    }
+
+    for r in records:
+        for d in ["Quarantine", "Reject", "Secondary"]:
+
+            if decisions[d](r):
+                results.append(d)
+                break
+        else:
+            # A traveller is accepted if they are not quarantined,
+            # rejected, or require secondary processing
+            results.append("Accept")
+
+    return results
+
+
+def _set_global_vars(input_file, watchlist_file, countries_file):
+
     global records, countries, watch_passports, watch_names
 
     # read in all files into data structures
     files = [input_file, watchlist_file, countries_file]
     records, watchlist, countries = [json.load(open(f)) for f in files]
 
-    watch_passports = set([x["passport"] for x in watchlist])
-    watch_names = set([" ".join(x["first_name"], x["last_name"]) for x in watchlist])
+    # convert country codes to lowercase
+    countries = {k.lower(): v for k, v in countries.items()}
 
-    results = []
-
-    decisions = {
-        "Quarantine": is_quarantine,
-        "Reject": is_rejection,
-        "Secondary": is_secondary,
-    }
-
-    for r in records:
-        '''
-        Decide whether we need to "Accept", "Reject", "Secondary",
-        or "Quarantine" person with record r
-
-        Append string to results
-        '''
-    return results
+    # convert names and passports in watchlist to lower case
+    watch_passports = set([x["passport"].lower() for x in watchlist])
+    watch_names = set([" ".join([x["first_name"], x["last_name"]]).lower() for x in watchlist])
 
 
 def is_quarantine(record):
@@ -78,17 +91,18 @@ def is_quarantine(record):
         False otherwise.
     """
 
-    home, via = record["home"]["country"], record["from"]["country"]
+    from_ = record["from"]["country"]
+    via = record.get("via", {}).get("country", "")
 
-    # Quarantine if traveller was born in a country, or is travelling
-    # from a country, having a medical advisory.
-    if any([countries[c]["medical_advisory"] for c in [home, via]]):
+    # If the traveler is coming from or via a country that has a
+    # medical advisory, he or she must be sent to quarantine
+    if any([countries.get(c.lower(), {}).get("medical_advisory", "") for c in [from_, via]]):
         return True
 
     return False
 
 
-def is_rejection(record):
+def is_reject(record):
     """
     Return True iff a traveller that has the given record should be
     rejected.
@@ -103,7 +117,17 @@ def is_rejection(record):
         return True
 
     # Check if they need a visa.
-    if record["entry_reason"] not in ["visit", "transit"]:
+    home = record["home"]["country"].lower()
+    reason = record["entry_reason"]
+
+    if reason == "visit" and \
+            not int(countries[home]["visitor_visa_required"]):
+            return False
+    elif reason == "transit" and \
+            not int(countries[home]["transit_visa_required"]):
+            return False
+    else:
+        # traveller is returning
         return False
 
     # Check whether the visa is valid.
@@ -133,8 +157,8 @@ def is_secondary(record):
     """
 
     # Check if name or passport on the watchlist
-    passport = record["passport"]
-    name = " ".join(record["first_name"], record["last_name"])
+    passport = record["passport"].lower()
+    name = " ".join([record["first_name"], record["last_name"]]).lower()
 
     return (passport in watch_passports) or (name in watch_names)
 
