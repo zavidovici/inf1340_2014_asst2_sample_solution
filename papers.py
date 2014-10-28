@@ -57,6 +57,22 @@ def decide(input_file, watchlist_file, countries_file):
 
 
 def is_quarantine(record):
+    """
+    Return True iff a traveller that has the given record should be
+    quarantined.
+
+    :param record: A dict that corresponds to a traveller record.
+    :return: Boolean; True if traveller should be quarantined,
+        False otherwise.
+    """
+
+    home, via = record["home"]["country"], record["from"]["country"]
+    
+    # quarantine if traveller was born in a country, or is travelling
+    # from a country, having a medical advisory
+    if any(COUNTRIES[c]["medical_advisory"] for c in [home, via]):
+        return True
+
     return False
 
 
