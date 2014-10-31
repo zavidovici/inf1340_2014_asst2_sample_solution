@@ -2,8 +2,8 @@
 
 """ Computer-based immigration office for Kanadia """
 
-__author__ = 'Susan Sim'
-__email__ = "ses@drsusansim.org"
+__author__ = 'Susan Sim, Sasa Milic'
+__email__ = "ses@drsusansim.org, milic@cs.toronto.edu"
 
 __copyright__ = "2014 Susan Sim"
 __license__ = "MIT License"
@@ -15,15 +15,31 @@ import re
 import datetime
 import json
 
-# global constants
+######################
+## global constants ##
+######################
 REQUIRED_FIELDS = ["passport", "first_name", "last_name",
                    "birth_date", "home", "entry_reason", "from"]
 
-# global variables
-records = None
-countries = None
-watch_passports = None
-watch_names = None
+######################
+## global variables ##
+######################
+'''
+countries:
+dictionary mapping country codes (lowercase strings) to dictionaries
+containing the following keys:
+"code","name","visitor_visa_required",
+"transit_visa_required","medical_advisory"
+'''
+COUNTRIES = None
+'''
+WATCH_PASSPORTS, WATCH_NAMES:
+sets containing, respectively, passports (lowercase strings) and
+names (lowercase strings in the format "{first_name} {last_name}")
+of people on the "watchlist"
+'''
+WATCH_PASSPORTS = None
+WATCH_NAMES = None
 
 
 def decide(input_file, watchlist_file, countries_file):
@@ -41,9 +57,8 @@ def decide(input_file, watchlist_file, countries_file):
         "Accept", "Reject", "Secondary", and "Quarantine"
     """
 
-    _set_global_vars(input_file, watchlist_file, countries_file)
-
-    results = []
+    records = json.load(open(input_file))
+    set_global_vars(watchlist_file, countries_file)
 
     decisions = {
         "Quarantine": is_quarantine,
@@ -51,7 +66,10 @@ def decide(input_file, watchlist_file, countries_file):
         "Secondary": is_secondary,
     }
 
+    results = []
     for r in records:
+
+        # An exciting opportunity to use Python's for...else construct!
         for d in ["Quarantine", "Reject", "Secondary"]:
 
             if decisions[d](r):
@@ -65,20 +83,20 @@ def decide(input_file, watchlist_file, countries_file):
     return results
 
 
-def _set_global_vars(input_file, watchlist_file, countries_file):
+def set_global_vars(watchlist_file, countries_file):
 
-    global records, countries, watch_passports, watch_names
+    global COUNTRIES, WATCH_PASSPORTS, WATCH_NAMES
 
     # read in all files into data structures
-    files = [input_file, watchlist_file, countries_file]
-    records, watchlist, countries = [json.load(open(f)) for f in files]
+    files = [watchlist_file, countries_file]
+    watchlist, COUNTRIES = [json.load(open(f)) for f in files]
 
     # convert country codes to lowercase
-    countries = {k.lower(): v for k, v in countries.items()}
+    COUNTRIES = {k.lower(): v for k, v in COUNTRIES.items()}
 
     # convert names and passports in watchlist to lower case
-    watch_passports = set([x["passport"].lower() for x in watchlist])
-    watch_names = set([" ".join([x["first_name"], x["last_name"]]).lower() for x in watchlist])
+    WATCH_PASSPORTS = set([x["passport"].lower() for x in watchlist])
+    WATCH_NAMES = set([" ".join([x["first_name"], x["last_name"]]).lower() for x in watchlist])
 
 
 def is_quarantine(record):
@@ -91,12 +109,14 @@ def is_quarantine(record):
         False otherwise.
     """
 
-    from_ = record["from"]["country"]
+    # fields may not exist in record, thus
+    # default values of from_ and via are empty strings 
+    from_ = record.get("from", {}).get("country", "")
     via = record.get("via", {}).get("country", "")
 
     # If the traveler is coming from or via a country that has a
     # medical advisory, he or she must be sent to quarantine
-    if any([countries.get(c.lower(), {}).get("medical_advisory", "") for c in [from_, via]]):
+    if any([COUNTRIES.get(c.lower(), {}).get("medical_advisory", "") for c in [from_, via]]):
         return True
 
     return False
@@ -116,34 +136,8 @@ def is_reject(record):
     if not all([record.get(field, "") for field in REQUIRED_FIELDS]):
         return True
 
-    # Check if they need a visa.
-    home = record["home"]["country"].lower()
-    reason = record["entry_reason"]
-
-    if reason == "visit" and \
-            not int(countries[home]["visitor_visa_required"]):
-            return False
-    elif reason == "transit" and \
-            not int(countries[home]["transit_visa_required"]):
-            return False
-    else:
-        # traveller is returning
-        return False
-
-    # Check whether the visa is valid.
-    visa = record.get("visa")
-    if visa:
-
-        visa_code = visa.get("code", "")
-        visa_date = visa.get("date", "")
-
-        if valid_visa_format(visa_code) and \
-           valid_date_format(visa_date) and \
-           is_valid_visa(visa_date):
-
-            return False
-
-    return True
+    # Reject traveller if they need a visa and it is not valid.
+    return requires_visa(record) and not is_valid_visa(record)
 
 
 def is_secondary(record):
@@ -160,20 +154,55 @@ def is_secondary(record):
     passport = record["passport"].lower()
     name = " ".join([record["first_name"], record["last_name"]]).lower()
 
-    return (passport in watch_passports) or (name in watch_names)
+    return (passport in WATCH_PASSPORTS) or (name in WATCH_NAMES)
 
 
-def is_valid_visa(visa_date):
+def requires_visa(record):
+    """
+    Return whether a travelled requires a visa (transit or traveller)
+    :param record: A dict that corresponds to a traveller record.
+    :return: Boolean; True if the traveller requires a visa, False otherwise
+    """
+
+    home = record["home"]["country"].lower()
+    reason = record["entry_reason"].lower()
+    if home == "kan":
+        return False
+
+    visitor_visa_required = int(COUNTRIES[home]["visitor_visa_required"])
+    transit_visa_required = int(COUNTRIES[home]["transit_visa_required"])
+
+    if reason == "visit" and visitor_visa_required:
+        return False
+    if reason == "transit" and transit_visa_required:
+        return False
+
+    # traveller is returning
+    return False
+
+
+def is_valid_visa(record):
     """
     Checks whether a visa is valid (a valid visa is one that is less than two years)
-    :param visa_date: A string in the form 'XXXX-XX-XX'; the date the visa was issued
+    :param record: A dict that corresponds to a traveller record.
     :return: Boolean; True if the visa is valid, False otherwise
     """
 
-    then = datetime.datetime.strptime(visa_date, '%Y-%m-%d')
-    now = datetime.datetime.now()
+    # Check whether the visa information is available,
+    # and in the proper format
+    visa = record.get("visa", {})
+    visa_code = visa.get("code", "")
+    visa_date = visa.get("date", "")
 
-    return (now - then).days < (365 * 2)
+    if not (valid_visa_format(visa_code) and valid_date_format(visa_date)):
+        return False
+
+    # Check if visa is less than 2 years old
+    now = datetime.datetime.now()
+    two_years_ago = now.replace(year=now.year-2)
+    visa_datetime = datetime.datetime.strptime(visa_date, '%Y-%m-%d')
+
+    return (visa_datetime - two_years_ago).total_seconds() >= 0
 
 
 def valid_visa_format(visa_code):
@@ -184,10 +213,7 @@ def valid_visa_format(visa_code):
     """
     passport_format = re.compile('.{5}-.{5}')
 
-    if passport_format.match(visa_code):
-        return True
-    else:
-        return False
+    return passport_format.match(visa_code)
 
 
 def valid_passport_format(passport_number):
@@ -198,10 +224,7 @@ def valid_passport_format(passport_number):
     """
     passport_format = re.compile('.{5}-.{5}-.{5}-.{5}-.{5}')
 
-    if passport_format.match(passport_number):
-        return True
-    else:
-        return False
+    return passport_format.match(passport_number)
 
 
 def valid_date_format(date_string):
