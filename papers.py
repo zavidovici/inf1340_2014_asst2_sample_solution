@@ -159,7 +159,7 @@ def is_secondary(record):
 
 def requires_visa(record):
     """
-    Return whether a travelled requires a visa (transit or traveller)
+    Return whether a traveller requires a visa (transit or traveller)
     :param record: A dict that corresponds to a traveller record.
     :return: Boolean; True if the traveller requires a visa, False otherwise
     """
@@ -173,9 +173,9 @@ def requires_visa(record):
     transit_visa_required = int(COUNTRIES[home]["transit_visa_required"])
 
     if reason == "visit" and visitor_visa_required:
-        return False
+        return True
     if reason == "transit" and transit_visa_required:
-        return False
+        return True
 
     # traveller is returning
     return False
