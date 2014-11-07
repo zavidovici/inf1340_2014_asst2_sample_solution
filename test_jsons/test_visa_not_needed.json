@@ -1,0 +1,36 @@
+[
+  {
+    "passport": "AAAAA-11111-BBBBB-22222-CCCCC",
+    "first_name": "Sasa",
+    "last_name": "Milic",
+    "birth_date": "1943-01-30",
+    "home": {
+      "city": "Urella",
+      "region": "Parsol",
+      "country": "GOR"
+    },
+    "from": {
+      "city": "a",
+      "region": "a",
+      "country": "DSK"
+    },
+    "entry_reason": "visit"
+  },
+  {
+    "passport": "AAAAA-11111-BBBBB-22222-CCCCC",
+    "first_name": "Sasa",
+    "last_name": "Milic",
+    "birth_date": "1943-01-30",
+    "home": {
+      "city": "a",
+      "region": "a",
+      "country": "CFR"
+    },
+    "from": {
+      "city": "a",
+      "region": "a",
+      "country": "DSK"
+    },
+    "entry_reason": "transit"
+  }
+]

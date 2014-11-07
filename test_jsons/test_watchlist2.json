@@ -1,0 +1,36 @@
+[
+  {
+    "passport": "AAAAA-11111-BBBBB-22222-CCCCC",
+    "first_name": "AMIE",
+    "last_name": "MCCLELLAND",
+    "birth_date": "1990-01-01",
+    "home": {
+      "city": "A",
+      "region": "B",
+      "country": "JIK"
+    },
+    "from": {
+      "city": "A",
+      "region": "B",
+      "country": "JIK"
+    },
+    "entry_reason": "visit"
+  },
+  {
+    "passport": "AAAAA-11111-BBBBB-22222-CCCCC",
+    "first_name": "LIBBIE",
+    "last_name": "HAAS",
+    "birth_date": "1990-01-01",
+    "home": {
+      "city": "A",
+      "region": "B",
+      "country": "JIK"
+    },
+    "from": {
+      "city": "A",
+      "region": "B",
+      "country": "JIK"
+    },
+    "entry_reason": "visit"
+  }
+]
