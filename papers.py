@@ -57,7 +57,11 @@ def decide(input_file, watchlist_file, countries_file):
         "Accept", "Reject", "Secondary", and "Quarantine"
     """
 
-    records = json.load(open(input_file))
+    with open(input_file) as f:
+        records = json.load(f)
+
+    records = [convert_to_lower(r) for r in records]
+
     set_global_vars(watchlist_file, countries_file)
 
     decisions = {
@@ -83,20 +87,50 @@ def decide(input_file, watchlist_file, countries_file):
     return results
 
 
+def convert_to_lower(d):
+    """
+    Convert all strings in dict d to upper case.
+
+    :param d: a dictionary with string keys, where
+     values are either strings or dicts
+    :return:
+    """
+
+    new_d = {}
+    for k, v in d.items():
+
+        if type(v) is str:
+            new_d[k.lower()] = v.lower()
+        elif type(v) is dict:
+            new_d[k.lower()] = convert_to_lower(v)
+
+    return new_d
+
+
 def set_global_vars(watchlist_file, countries_file):
+    """
+    Populate global variables COUNTRIES, WATCH_PASSPORTS, and WATCH_NAMES
+
+    :param watchlist_file: JSON file
+    :param countries_file: JSON file
+    :return: None
+    """
 
     global COUNTRIES, WATCH_PASSPORTS, WATCH_NAMES
 
     # read in all files into data structures
-    files = [watchlist_file, countries_file]
-    watchlist, COUNTRIES = [json.load(open(f)) for f in files]
+    with open(watchlist_file) as f:
+        watchlist = json.load(f)
+    with open(countries_file) as f:
+        COUNTRIES = json.load(f)
 
-    # convert country codes to lowercase
-    COUNTRIES = {k.lower(): v for k, v in COUNTRIES.items()}
+    # convert country codes to uppercase
+    COUNTRIES = convert_to_lower(COUNTRIES)
+    watchlist = [convert_to_lower(w) for w in watchlist]
 
     # convert names and passports in watchlist to lower case
-    WATCH_PASSPORTS = set([x["passport"].lower() for x in watchlist])
-    WATCH_NAMES = set([" ".join([x["first_name"], x["last_name"]]).lower() for x in watchlist])
+    WATCH_PASSPORTS = set([x["passport"] for x in watchlist])
+    WATCH_NAMES = set([" ".join([x["first_name"], x["last_name"]]) for x in watchlist])
 
 
 def is_quarantine(record):
@@ -116,7 +150,7 @@ def is_quarantine(record):
 
     # If the traveler is coming from or via a country that has a
     # medical advisory, he or she must be sent to quarantine
-    if any([COUNTRIES.get(c.lower(), {}).get("medical_advisory", "") for c in [from_, via]]):
+    if any([COUNTRIES.get(c, {}).get("medical_advisory", "") for c in [from_, via]]):
         return True
 
     return False
@@ -164,8 +198,8 @@ def requires_visa(record):
     :return: Boolean; True if the traveller requires a visa, False otherwise
     """
 
-    home = record["home"]["country"].lower()
-    reason = record["entry_reason"].lower()
+    home = record["home"]["country"]
+    reason = record["entry_reason"]
     if home == "kan":
         return False
 
@@ -234,7 +268,12 @@ def valid_date_format(date_string):
     :return: Boolean True if the format is valid, False otherwise
     """
     try:
-        datetime.datetime.strptime(date_string, '%Y-%m-%d')
-        return True
+        date = datetime.datetime.strptime(date_string, '%Y-%m-%d')
+
+        now = datetime.datetime.now()
+        years120_ago = now.replace(year=now.year-120)
+
+        return (date - years120_ago).total_seconds() >= 0
+
     except ValueError:
         return False
