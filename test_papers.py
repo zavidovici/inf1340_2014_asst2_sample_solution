@@ -12,6 +12,7 @@ __status__ = "Prototype"
 
 # imports one per line
 import pytest
+import os
 from papers import decide
 
 DIR = "test_jsons/"
@@ -118,5 +119,15 @@ def test_error_file_not_found():
     with pytest.raises(FileNotFoundError):
         decide(DIR + "test_returning_citizen.json", "", "countries.json")
 
-# add functions for other tests
-# TEST ORIGINAL FILES NOT CHANGED
+
+def test_files_not_modified():
+    """
+    Test that input files are not modified.
+    """
+    files = [DIR + "example_entries.json", "watchlist.json", "countries.json"]
+
+    before = [os.path.getmtime(f) for f in files]
+    decide(DIR + "example_entries.json", "watchlist.json", "countries.json")
+    after = [os.path.getmtime(f) for f in files]
+
+    assert before == after
