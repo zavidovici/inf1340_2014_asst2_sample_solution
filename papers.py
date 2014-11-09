@@ -124,11 +124,11 @@ def set_global_vars(watchlist_file, countries_file):
     with open(countries_file) as f:
         COUNTRIES = json.load(f)
 
-    # convert country codes to uppercase
+    # convert country codes to lowercase
     COUNTRIES = convert_to_lower(COUNTRIES)
     watchlist = [convert_to_lower(w) for w in watchlist]
 
-    # convert names and passports in watchlist to lower case
+    # populate sets
     WATCH_PASSPORTS = set([x["passport"] for x in watchlist])
     WATCH_NAMES = set([" ".join([x["first_name"], x["last_name"]]) for x in watchlist])
 
@@ -245,7 +245,7 @@ def valid_visa_format(visa_code):
     :param visa_code: alpha-numeric string
     :return: Boolean; True if the format is valid, False otherwise
     """
-    passport_format = re.compile('.{5}-.{5}')
+    passport_format = re.compile('^\w{5}-\w{5}$')
 
     return passport_format.match(visa_code)
 
@@ -256,7 +256,7 @@ def valid_passport_format(passport_number):
     :param passport_number: alpha-numeric string
     :return: Boolean; True if the format is valid, False otherwise
     """
-    passport_format = re.compile('.{5}-.{5}-.{5}-.{5}-.{5}')
+    passport_format = re.compile('^\w{5}-\w{5}-\w{5}-\w{5}-\w{5}$')
 
     return passport_format.match(passport_number)
 
@@ -268,12 +268,8 @@ def valid_date_format(date_string):
     :return: Boolean True if the format is valid, False otherwise
     """
     try:
-        date = datetime.datetime.strptime(date_string, '%Y-%m-%d')
-
-        now = datetime.datetime.now()
-        years120_ago = now.replace(year=now.year-120)
-
-        return (date - years120_ago).total_seconds() >= 0
+        datetime.datetime.strptime(date_string, '%Y-%m-%d')
+        return True
 
     except ValueError:
         return False
