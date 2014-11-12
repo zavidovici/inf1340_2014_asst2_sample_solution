@@ -60,6 +60,7 @@ def decide(input_file, watchlist_file, countries_file):
     with open(input_file) as f:
         records = json.load(f)
 
+    # convert record dicts to lowercase
     records = [convert_to_lower(r) for r in records]
 
     set_global_vars(watchlist_file, countries_file)
@@ -80,8 +81,6 @@ def decide(input_file, watchlist_file, countries_file):
                 results.append(d)
                 break
         else:
-            # A traveller is accepted if they are not quarantined,
-            # rejected, or require secondary processing
             results.append("Accept")
 
     return results
@@ -144,7 +143,7 @@ def is_quarantine(record):
     """
 
     # fields may not exist in record, thus
-    # default values of from_ and via are empty strings 
+    # default values of from_ and via are empty strings
     from_ = record.get("from", {}).get("country", "")
     via = record.get("via", {}).get("country", "")
 
@@ -166,8 +165,18 @@ def is_reject(record):
         False otherwise.
     """
 
-    # Check if required information is complete.
+    # Reject if required information is incomplete.
     if not all([record.get(field, "") for field in REQUIRED_FIELDS]):
+        return True
+
+    # Reject if improper passport or date format
+    if not valid_passport_format(record["passport"]):
+        return True
+    if not valid_date_format(record["birth_date"]):
+        return True
+
+    # Reject if birth date on passport is more than 120 years ago
+    if is_more_than_x_years_ago(120, record["birth_date"]):
         return True
 
     # Reject traveller if they need a visa and it is not valid.
@@ -185,8 +194,8 @@ def is_secondary(record):
     """
 
     # Check if name or passport on the watchlist
-    passport = record["passport"].lower()
-    name = " ".join([record["first_name"], record["last_name"]]).lower()
+    passport = record["passport"]
+    name = " ".join([record["first_name"], record["last_name"]])
 
     return (passport in WATCH_PASSPORTS) or (name in WATCH_NAMES)
 
@@ -200,6 +209,7 @@ def requires_visa(record):
 
     home = record["home"]["country"]
     reason = record["entry_reason"]
+
     if home == "kan":
         return False
 
@@ -228,15 +238,32 @@ def is_valid_visa(record):
     visa_code = visa.get("code", "")
     visa_date = visa.get("date", "")
 
-    if not (valid_visa_format(visa_code) and valid_date_format(visa_date)):
+    if not valid_visa_format(visa_code):
+        return False
+    if not valid_date_format(visa_date):
         return False
 
-    # Check if visa is less than 2 years old
-    now = datetime.datetime.now()
-    two_years_ago = now.replace(year=now.year-2)
-    visa_datetime = datetime.datetime.strptime(visa_date, '%Y-%m-%d')
+    # Check if visa is more than 2 years old
+    if is_more_than_x_years_ago(2, visa_date):
+        return False
 
-    return (visa_datetime - two_years_ago).total_seconds() >= 0
+    return True
+
+
+def is_more_than_x_years_ago(x, date_string):
+    """
+    Check if date is less than x years ago.
+
+    :param x: int representing years
+    :param date_string: a date string in format "YYYY-mm-dd"
+    :return: True if date is less than x years ago; False otherwise.
+    """
+
+    now = datetime.datetime.now()
+    x_years_ago = now.replace(year=now.year - x)
+    date = datetime.datetime.strptime(date_string, '%Y-%m-%d')
+
+    return (date - x_years_ago).total_seconds() < 0
 
 
 def valid_visa_format(visa_code):
