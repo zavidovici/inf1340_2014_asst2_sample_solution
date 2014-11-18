@@ -76,7 +76,6 @@ def decide(input_file, watchlist_file, countries_file):
 
         # An exciting opportunity to use Python's for...else construct!
         for d in ["Quarantine", "Reject", "Secondary"]:
-
             if decisions[d](r):
                 results.append(d)
                 break
